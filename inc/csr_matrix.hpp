@@ -10,10 +10,10 @@
 #include <utility>
 
 struct csr_matrix {
-    int size;
-    std::vector<int> col_idx;
-    std::vector<int> row_ptr;
-    csr_matrix(int, std::set<std::pair<int, int>>);
+    size_t size;
+    std::vector<size_t> col_idx;
+    std::vector<size_t> row_ptr;
+    csr_matrix(size_t, std::set<std::pair<size_t, size_t>>);
 };
 
 #endif
