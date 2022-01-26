@@ -120,7 +120,14 @@ void compute_girth_stats(size_t p) {
                 // for g = 3, there is a subset with (s<3,g=3)
                 // for g = g`, there is a subset with (s<g`,g=g`)
 
-                // BIG IDEA: for some `s`, either `g` >= s
+                // BIG IDEA: 
+
+                // for s = 3, if g < 3 we will know via subset
+                // for s = 4, if g < 4 we will know via subset
+                // for s = 5, if g < 5 we will know via subset
+
+                // once we retreive the initial girth via checking subsets
+                // if the initial g = s: that is the final girth
 
                 // TODO: check subsets
                 csr_matrix m(p, combined_function);
