@@ -1,0 +1,1 @@
+include_directories(${girth-of-quadratic-graphs_SOURCE_DIR}/inc)
