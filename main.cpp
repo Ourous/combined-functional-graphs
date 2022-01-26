@@ -1,6 +1,8 @@
 #include <iostream>
 #include <chrono>
 
+#include <thread>
+
 #include <vector>
 #include <set>
 #include <utility>
@@ -29,7 +31,8 @@ std::set<T> set_merge_linear_time(const std::set<T>& s1, const std::set<T>& s2) 
 
 void compute_girth_stats(size_t p) {
     // initialize the various function sets
-    std::map<size_t, std::set<std::pair<size_t, size_t>>> quadratics;
+    // std::map<size_t, std::set<std::pair<size_t, size_t>>> quadratics;
+    std::map<size_t, std::map<size_t, std::set<size_t>>> quadratics;
     std::vector<size_t> others;
 
 
@@ -43,28 +46,24 @@ void compute_girth_stats(size_t p) {
     std::vector<std::vector<std::vector<size_t>>> girths(p, std::vector<std::vector<size_t>>());
 
     for (size_t a = 0; a < p; a++) {
-        std::set<std::pair<size_t, size_t>> points;
+        std::map<size_t, std::set<size_t>> points;
         bool girth_is_one = false, girth_maybe_two = false;
         for (size_t x = 0; x < p && !girth_is_one; x++) { // works for p < 2^63
             size_t y = (x * x + a) % p;
             if (x == y) girth_is_one = true;
             else if (!girth_maybe_two) {
                 if (x == (y * y + a) % p) girth_maybe_two = true;
-                else
-                    points.insert(std::make_pair(y, x));
+                else {
+                    if (points.contains(x)) points[x].insert(y);
+                    else points[x] = { y };
+                }
             }
         }
         if (girth_is_one) {
-            // ones.insert(a);
             singles[a] = 1;
-            // girths.insert({ { a }, 1 });
-            // girths[1].push_back({ a });
         }
         else if (girth_maybe_two) {
-            // twos.insert({ a });
             singles[a] = 2;
-            // girths.insert({ { a }, 2 });
-            // girths[2].push_back({ a });
         }
         else {
             quadratics.insert({ a, points });
@@ -75,15 +74,6 @@ void compute_girth_stats(size_t p) {
 
 
     for (auto [a, points] : quadratics) {
-        // for (size_t a = 0; a < p; a++) {
-            // if (ones.count(a)) {
-            //     std::cout << a << ": " << 1 << std::endl;
-            //     continue;
-            // }
-            // if (twos.count({ a })) {
-            //     std::cout << a << ": " << 2 << std::endl;
-            //     continue;
-            // }
         csr_matrix m(p, points);
         int g = p;
         for (size_t v = 0; v < p; v++) {
@@ -119,11 +109,14 @@ void compute_girth_stats(size_t p) {
 
             if (g <= s) continue;
             if (g > s) {
-                // std::cout << "g: " << g << ", s: " << s << std::endl;
-                std::set<std::pair<size_t, size_t>> combined_function;
+
+                std::map<size_t, std::set<size_t>> combined_function;
                 for (auto a : coefficients) {
-                    // combined_function = set_merge_linear_time(quadratics[a], combined_function);
-                    combined_function.insert(quadratics[a].begin(), quadratics[a].end());
+                    // TODO: use STL stuff for speed?
+                    for (auto [x, y] : quadratics[a]) {
+                        if (combined_function.contains(x)) combined_function[x].insert(y.begin(), y.end());
+                        else combined_function.insert({ x, y });
+                    }
                 }
 
                 csr_matrix m(p, combined_function);
@@ -143,6 +136,12 @@ void compute_girth_stats(size_t p) {
         for (int a = 0; a < p; a++) {
             if (singles[a] == s + 1) {
                 quadratics.erase(a);
+                // for (auto subset_group : girths) {
+                //     std::erase_if(subset_group, [a](std::vector<size_t> subset) {
+                //         return std::binary_search(subset.begin(), subset.end(), a);
+                //         }
+                //     );
+                // }
             }
         }
     }
@@ -175,9 +174,9 @@ void compute_girth_stats(size_t p) {
 int main(int, char**) {
     std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
-    size_t p = 313;
+    size_t p = 401;
     //97 = 17 seconds with twos
-    //401 = 17 seconds with full lookup
+    //401 = 5 seconds with full lookup
 
     compute_girth_stats(p);
 
