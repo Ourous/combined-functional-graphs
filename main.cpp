@@ -38,7 +38,9 @@ void compute_girth_stats(size_t p) {
     // TODO: store single twos in different set to speed up subset checking
     std::set<std::set<size_t>> twos; // never need to store anything if a subset is already in here
     // std::map<std::set<size_t>, size_t> others; // once we fill out 3s we can delete 2s and so-on
-    std::map<std::set<size_t>, int> girths;
+    // std::map<std::set<size_t>, int> girths;
+    // std::map<int,std::set<std::set<size_t>>> girths;
+    std::vector<std::vector<std::vector<size_t>>> girths(p, std::vector<std::vector<size_t>>());
 
     for (size_t a = 0; a < p; a++) {
         std::set<std::pair<size_t, size_t>> points;
@@ -54,11 +56,13 @@ void compute_girth_stats(size_t p) {
         }
         if (girth_is_one) {
             ones.insert(a);
-            girths.insert({ { a }, 1 });
+            // girths.insert({ { a }, 1 });
+            // girths[1].push_back({ a });
         }
         else if (girth_maybe_two) {
             twos.insert({ a });
-            girths.insert({ { a }, 2 });
+            // girths.insert({ { a }, 2 });
+            // girths[2].push_back({ a });
         }
         else {
             quadratics.insert({ a, points });
@@ -68,24 +72,25 @@ void compute_girth_stats(size_t p) {
     }
 
 
-
-    for (size_t a = 0; a < p; a++) {
-        if (ones.count(a)) {
-            std::cout << a << ": " << 1 << std::endl;
-            continue;
-        }
-        if (twos.count({ a })) {
-            std::cout << a << ": " << 2 << std::endl;
-            continue;
-        }
-        csr_matrix m(p, quadratics[a]);
+    for (auto [a, points] : quadratics) {
+        // for (size_t a = 0; a < p; a++) {
+            // if (ones.count(a)) {
+            //     std::cout << a << ": " << 1 << std::endl;
+            //     continue;
+            // }
+            // if (twos.count({ a })) {
+            //     std::cout << a << ": " << 2 << std::endl;
+            //     continue;
+            // }
+        csr_matrix m(p, points);
         int g = p;
         for (size_t v = 0; v < p; v++) {
             g = std::min(g, bfs(m, v, g));
             // auto girth = bfs(m, v, g);
             // std::cout << "from " << v << ": " << girth << std::endl;
         }
-        girths.insert({ { a }, g });
+        // girths.insert({ { a }, g });
+        girths[g].push_back({ a });
 
         std::cout << a << ": " << g << std::endl;
     }
@@ -95,20 +100,39 @@ void compute_girth_stats(size_t p) {
         std::vector<bool> combination(quadratics.size(), false);
         std::fill(combination.begin(), combination.begin() + s, true);
         do {
-            std::set<size_t> coefficients;
+            std::vector<size_t> coefficients;
             for (int i = 0; i < combination.size(); i++) {
                 if (!combination[i]) continue;
-                coefficients.insert(others[i]);
+                coefficients.push_back(others[i]);
             }
-            int g = p;
-            for (auto two : twos) { // TODO change the way these sort to be shortest leng first then lexicographic
-                if (std::includes(coefficients.begin(), coefficients.end(), two.begin(), two.end())) {
-                    g = 2;
-                    break;
+            int g = 0;
+            // for (auto [subset, initial_girth] : girths) { // TODO this should be sorted by initial girth so it goes faster
+            //     if (g <= initial_girth) continue;
+            //     if (std::includes(coefficients.begin(), coefficients.end(), subset.begin(), subset.end())) {
+            //         g = initial_girth;
+            //         if (g < s) break;
+            //     }
+            // }
+            [&] {
+                for (; g < girths.size(); g++) {
+                    for (auto subset : girths[g]) {
+                        if (std::includes(coefficients.begin(), coefficients.end(), subset.begin(), subset.end())) {
+                            return;
+                        }
+                    }
                 }
-            }
-            if (g == 2) continue;
-            if (g > 2) {
+            }();
+            // for (auto two : twos) { // TODO change the way these sort to be shortest leng first then lexicographic
+            //     if (std::includes(coefficients.begin(), coefficients.end(), two.begin(), two.end())) {
+            //         g = 2;
+            //         break;
+            //     }
+            // }
+            // if (g == 2) continue;
+            // if (g > 2) {
+            if (g <= s) continue;
+            if (g > s) {
+                std::cout << "g: " << g << ", s: " << s << std::endl;
                 std::set<std::pair<size_t, size_t>> combined_function;
                 for (auto a : coefficients) {
                     // combined_function = set_merge_linear_time(quadratics[a], combined_function);
@@ -129,17 +153,24 @@ void compute_girth_stats(size_t p) {
                 // once we retreive the initial girth via checking subsets
                 // if the initial g = s: that is the final girth
 
-                // TODO: check subsets
-                csr_matrix m(p, combined_function);
-                for (size_t v = 0; v < p && g > 2; v++) {
-                    // std::cout << bfs(m, v, g) << std::endl;
-                    g = std::min(g, bfs(m, v, m.size));
-                }
-                if (g == 2) {
-                    twos.insert(coefficients);
-                    continue;
-                }
+                // so we only store subsets where g >= s
 
+                // I *think* we don't need to check where g == s and we can assume it remains the same
+                // TODO: CHECK THE ABOVE LINE; IMPLEMENT IF TRUE
+
+                csr_matrix m(p, combined_function);
+                int initial_g = g;
+                for (size_t v = 0; v < p && g > s; v++) {
+                    // std::cout << bfs(m, v, g) << std::endl;
+                    g = std::min(g, bfs(m, v, g));
+                }
+                // if (g == 2) {
+                //     twos.insert(coefficients);
+                //     continue;
+                // }
+                // girths.insert({ coefficients, g });
+                if (initial_g > g)
+                    girths[g].push_back(coefficients);
             }
             // girths.insert({ coefficients, g });
             for (auto i = coefficients.begin(); i != coefficients.end();) {
@@ -149,7 +180,6 @@ void compute_girth_stats(size_t p) {
             }
             std::cout << ": " << g << std::endl;
 
-
         } while (std::next_permutation(combination.rbegin(), combination.rend()));
     }
 }
@@ -157,7 +187,9 @@ void compute_girth_stats(size_t p) {
 int main(int, char**) {
     std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
-    size_t p = 97;
+    size_t p = 101;
+    //97 = 17 seconds with twos, 5 seconds with full lookup
+    //
 
     compute_girth_stats(p);
 
