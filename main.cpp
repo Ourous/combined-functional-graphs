@@ -106,13 +106,6 @@ void compute_girth_stats(size_t p) {
                 coefficients.push_back(others[i]);
             }
             int g = 0;
-            // for (auto [subset, initial_girth] : girths) { // TODO this should be sorted by initial girth so it goes faster
-            //     if (g <= initial_girth) continue;
-            //     if (std::includes(coefficients.begin(), coefficients.end(), subset.begin(), subset.end())) {
-            //         g = initial_girth;
-            //         if (g < s) break;
-            //     }
-            // }
             [&] {
                 for (; g < girths.size(); g++) {
                     for (auto subset : girths[g]) {
@@ -122,14 +115,6 @@ void compute_girth_stats(size_t p) {
                     }
                 }
             }();
-            // for (auto two : twos) { // TODO change the way these sort to be shortest leng first then lexicographic
-            //     if (std::includes(coefficients.begin(), coefficients.end(), two.begin(), two.end())) {
-            //         g = 2;
-            //         break;
-            //     }
-            // }
-            // if (g == 2) continue;
-            // if (g > 2) {
             if (g <= s) continue;
             if (g > s) {
                 std::cout << "g: " << g << ", s: " << s << std::endl;
@@ -158,19 +143,15 @@ void compute_girth_stats(size_t p) {
                 // I *think* we don't need to check where g == s and we can assume it remains the same
                 // TODO: CHECK THE ABOVE LINE; IMPLEMENT IF TRUE
 
+                // SECOND IDEA:
+
+                // we can remove single functions with g = N when s > N
+                // TODO: TEST WITH DATA ^
+
                 csr_matrix m(p, combined_function);
                 int initial_g = g;
-                for (size_t v = 0; v < p && g > s; v++) {
-                    // std::cout << bfs(m, v, g) << std::endl;
-                    g = std::min(g, bfs(m, v, g));
-                }
-                // if (g == 2) {
-                //     twos.insert(coefficients);
-                //     continue;
-                // }
-                // girths.insert({ coefficients, g });
-                if (initial_g > g)
-                    girths[g].push_back(coefficients);
+                for (size_t v = 0; v < p; v++) g = std::min(g, bfs(m, v, g));
+                if (initial_g > g) girths[g].push_back(coefficients);
             }
             // girths.insert({ coefficients, g });
             for (auto i = coefficients.begin(); i != coefficients.end();) {
