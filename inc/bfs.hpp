@@ -5,6 +5,6 @@
 
 // TODO: can also mask out vertices which we already know the cycle sizes for?
 
-int bfs(const csr_matrix& m, size_t v, int g);
+unsigned int bfs(const csr_matrix& m, size_t v, unsigned int g);
 
 #endif

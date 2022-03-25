@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(girth-of-quadratic-graphs VERSION 0.1.0)
 
-set(CMAKE_CXX_FLAGS "-std=c++2a -Wc++-compat -Wall -Wextra -pedantic")
+set(CMAKE_CXX_FLAGS "-std=c++2a -Wc++-compat -Wall -Wextra -pedantic -pthread -lgmp -lgmpxx")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3")
 # set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fgcse-sm -fgcse-las")
@@ -22,7 +22,7 @@ add_subdirectory(lib)
 add_subdirectory(src)
 
 add_executable(girthtool main.cpp)
-target_link_libraries(girthtool bfs)
+target_link_libraries(girthtool bfs thread_pool gmp)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

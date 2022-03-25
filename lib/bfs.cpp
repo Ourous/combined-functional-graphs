@@ -2,8 +2,8 @@
 
 #include <vector>
 #include <iostream>
-
-int bfs(const csr_matrix& m, const size_t v, const int g) {
+// matrix, vertex, girth (current known lowest)
+unsigned int bfs(const csr_matrix& m, size_t v, unsigned int g) {
     std::vector<bool> mask(m.size, true); // changed to bool, logic inverted
     std::vector<size_t> vertex_queue(m.size, 0);
     // x, y can be anything supporting binary arithmetic
@@ -21,7 +21,7 @@ int bfs(const csr_matrix& m, const size_t v, const int g) {
     auto step_slice_end = step_slice_start + 1;
     auto next_slice = step_slice_end;
 
-    for (int step = 1; step < g; step++) {
+    for (unsigned int step = 1; step < g; step++) {
         // bool unchanged = true;
         for (auto i = step_slice_start; i != step_slice_end; i++) {
             const auto row = *i;
