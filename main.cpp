@@ -60,8 +60,8 @@ void compute_girth_stats(size_t p) {
     std::vector<size_t> quadratic_coefficients;
 
     std::vector<size_t> singles(p, 0); // a -> g
-    // girth-ordered sets of subsets that dictate a girth
-    std::vector<std::vector<std::vector<size_t>>> girths(p, std::vector<std::vector<size_t>>());
+    // [girth : vector of sets of n-vectors in order of increasing n ]
+    std::map<unsigned int, std::vector<std::vector<size_t>>> girths;
 
     for (size_t a = 0; a < p; a++) {
         std::map<size_t, std::set<size_t>> points;
@@ -71,10 +71,7 @@ void compute_girth_stats(size_t p) {
             if (x == y) girth_is_one = true;
             else if (!girth_maybe_two) {
                 if (x == (y * y + a) % p) girth_maybe_two = true;
-                else {
-                    if (points.contains(x)) points[x].insert(y);
-                    else points[x] = { y };
-                }
+                else points[x].insert(y);
             }
         }
         if (girth_is_one) {
@@ -89,29 +86,22 @@ void compute_girth_stats(size_t p) {
         }
     }
 
-    unsigned int limit_g = 0;
-
     for (auto [a, points] : quadratics) {
         csr_matrix m(p, points);
-        unsigned int g = p;
+        unsigned int g = (unsigned int)p;
         for (size_t v = 0; v < p; v++) {
             g = std::min(g, bfs(m, v, g));
         }
-        limit_g = std::max(g, limit_g);
         singles[a] = g;
-        girths[g].push_back({ a });
-
+        girths[g].emplace_back(std::vector{ a });
         // std::cout << a << ": " << g << std::endl;
     }
 
-    girths.resize(limit_g + 1);
 
-    std::mutex girths_mutex;
     size_t t = std::thread::hardware_concurrency();
     thread_pool pool(t);
-    std::vector<std::queue<std::pair<unsigned int, std::vector<size_t>>>> coefficient_queues_2nd_pass(t, std::queue<std::pair<unsigned int, std::vector<size_t>>>());
-    std::vector<std::mutex> thread_output_locks(t);
-    std::vector<std::condition_variable> thread_notifiers(t);
+    std::mutex girths_mutex;
+    std::queue<std::pair<unsigned int, std::vector<size_t>>> coefficient_queue_2nd_pass;
     for (size_t s = 2; s <= quadratics.size(); s++) {
 
         // todo: split cofficients into (t) queues that can be taken out of by the (t) threads
@@ -124,26 +114,27 @@ void compute_girth_stats(size_t p) {
 
         // start 1st pass threads here
         unsigned int max_g = 0;
-        std::vector<size_t> max_g_v;
+        // std::vector<size_t> max_g_v;
 
-        auto total_combinations = binomial(quadratics.size(), s);
+        const auto total_combinations = binomial(quadratics.size(), s);
         // std::cout << " TOTAL : " << total_combinations << std::endl;
-        auto combinations_per_job = total_combinations / t;
-        auto leftover_combinations = total_combinations % t;
+        const auto combinations_per_job = total_combinations / t;
+        const auto leftover_combinations = total_combinations % t;
+
         // std::cout << " PER: " << combinations_per_job << std::endl;
         size_t start_combination_id = 0;
 
         for (size_t which_t = 0; which_t < t; which_t++) {
 
-            auto combinations_in_job = combinations_per_job + ((leftover_combinations > which_t) ? 1 : 0);
+            const auto combinations_in_job = combinations_per_job + ((leftover_combinations > which_t) ? 1 : 0);
 
             if (combinations_in_job > 0) pool.do_job(
                 // I think the order of variable declaration and memory layout in this function is *really* important
                 //.. and should be analyzed further: moving the declaration of coefficients around seems to change the runtime by a whole second for 601
-                [&, which_t, start_combination_id, combinations_in_job] {
+                [&, start_combination_id, combinations_in_job] {
 
                     unsigned int local_max_g = 0;
-                    std::vector<size_t> local_max_g_v;
+                    // std::vector<size_t> local_max_g_v;
 
                     std::vector<bool> combination_indices(quadratics.size(), false);
                     // std::fill(combination.begin(), combination.begin() + s, true);
@@ -152,40 +143,47 @@ void compute_girth_stats(size_t p) {
                     }
 
                     std::vector<size_t> coefficients(s);
+                    // size_t* coefficients = new size_t[s];
 
-                    for (unsigned long i = 0; i < combinations_in_job; i++, std::next_permutation(combination_indices.rbegin(), combination_indices.rend())) {
+                    for (unsigned long combination_id = 0; combination_id < combinations_in_job; combination_id++, std::next_permutation(combination_indices.rbegin(), combination_indices.rend())) {
                         size_t coefficient_index = 0;
                         for (size_t i = 0; i < combination_indices.size(); i++) {
                             if (!combination_indices[i]) continue;
                             // coefficients.push_back(quadratic_coefficients[i]);
                             coefficients[coefficient_index++] = quadratic_coefficients[i];
                         }
+                        // memory locality of these subsets may have a massive performance impact
 
-                        unsigned int g = 0; // memory locality of these subsets may have a massive performance impact
+                        // TODO: try special-casing checking for size-2 subsets with a fancy algorithm, since that's most of the work being done
+
+                        unsigned int g = 0;
                         [&] {
-                            for (; g < girths.size(); g++) {
+                            for (const auto& [g_, subsets] : girths) {
                                 // if we order the subsets lexicographically we can perform a binary search for the range in which subsets that could be inside
                                 //.. our coefficients can exist in with reference to the first and last elements of our coefficients
                                 //.. eg we can consider only the range [subset.begin() >= coefficients.begin(), subset.end() <= coefficients.end()]
-                                for (const auto& subset : girths[g]) {
+                                for (const auto& subset : subsets) {
                                     // TODO: check if std::includes starts with a binary search for the elements at the ends of the ranges
                                     // maybe if I sort `subset` lexicographically?
                                     if (std::includes(coefficients.begin(), coefficients.end(), subset.begin(), subset.end())) { // there is an idea that if I find every possible combination with a coefficient already, I can discard the coefficient
+                                        g = g_;
                                         return;
                                     }
                                 }
+
                             }
                         }();
 
                         if (g <= s) {
                             if (g > local_max_g) {
                                 local_max_g = g;
-                                local_max_g_v = coefficients;
+                                // local_max_g_v = coefficients;
                             }
                         }
                         else {
-                            auto lock = std::scoped_lock(thread_output_locks[which_t]);
-                            coefficient_queues_2nd_pass[which_t].emplace(std::pair{ g, coefficients });
+                            // auto lock = std::scoped_lock(thread_output_locks[which_t]);
+                            auto lock = std::scoped_lock(girths_mutex);
+                            coefficient_queue_2nd_pass.emplace(std::pair{ g, coefficients });
                             // maybe also store g here
                         }
                     }
@@ -194,7 +192,7 @@ void compute_girth_stats(size_t p) {
                         auto lock = std::scoped_lock(girths_mutex);
                         if (local_max_g > max_g) {
                             max_g = local_max_g;
-                            max_g_v = local_max_g_v;
+                            // max_g_v = local_max_g_v;
                         }
                     }
                 }
@@ -212,18 +210,19 @@ void compute_girth_stats(size_t p) {
         // redistribute queues
 
         for (size_t which_t = 0; which_t < t; which_t++) {
-            if (coefficient_queues_2nd_pass[which_t].empty()) continue;
+            // if (coefficient_queues_2nd_pass[which_t].empty()) continue;
             pool.do_job(
-                [&, which_t] {
+                [&] {
                     std::vector<size_t> coefficients;
                     unsigned int g;
                     while (true) {
                         {
+                            auto lock = std::scoped_lock(girths_mutex);
                             // maybe use cond_variable here, or scoped_lock
-                            if (coefficient_queues_2nd_pass[which_t].empty()) return;
+                            if (coefficient_queue_2nd_pass.empty()) return;
 
-                            auto arguments = std::move(coefficient_queues_2nd_pass[which_t].front());
-                            coefficient_queues_2nd_pass[which_t].pop();
+                            auto arguments = std::move(coefficient_queue_2nd_pass.front());
+                            coefficient_queue_2nd_pass.pop();
                             coefficients = std::move(arguments.second);
                             g = arguments.first;
                         }
@@ -246,10 +245,10 @@ void compute_girth_stats(size_t p) {
                         if (initial_g > g) { // locking on both branches does something funky to the performance
                             {
                                 auto lock = std::scoped_lock(girths_mutex);
-                                girths[g].push_back(coefficients);
+                                girths[g].emplace_back(std::move(coefficients));
                                 if (g > max_g) {
                                     max_g = g;
-                                    max_g_v = coefficients;
+                                    // max_g_v = coefficients;
                                 }
                             }
                             // for (auto i = coefficients.begin(); i != coefficients.end();) {
@@ -263,7 +262,7 @@ void compute_girth_stats(size_t p) {
                             auto lock = std::scoped_lock(girths_mutex);
                             if (g > max_g) {
                                 max_g = g;
-                                max_g_v = coefficients;
+                                // max_g_v = coefficients;
                             }
                         }
                     }
@@ -290,11 +289,14 @@ void compute_girth_stats(size_t p) {
             if (singles[a] == s + 1 && quadratics.erase(a) > 0) {
                 // I THINK THIS WORKS?
                 std::erase(quadratic_coefficients, a);
-                for (auto& subset_group : girths) {
-                    std::erase_if(subset_group, [a](const std::vector<size_t>& subset) {
-                        return std::binary_search(subset.begin(), subset.end(), a);
+                for (auto& [g, subsets] : girths) {
+                    std::erase_if(
+                        subsets,
+                        [a](const std::vector<size_t>& subset) {
+                            return std::binary_search(subset.begin(), subset.end(), a);
                         }
                     );
+
                 }
                 // TODO: can also erase all quadratics that will always have their girth induced <= s+1
                 //.. but is it possible to actually do the removal and benefit from it?

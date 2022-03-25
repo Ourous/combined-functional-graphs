@@ -10,7 +10,7 @@
 class thread_pool {
 public:
 
-    thread_pool(int threads);
+    thread_pool(size_t threads);
     ~thread_pool();
 
     void do_job(std::function<void(void)> func);
