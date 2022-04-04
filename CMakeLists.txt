@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(girth-of-quadratic-graphs VERSION 0.1.0)
 
-set(CMAKE_CXX_FLAGS "-std=c++2a -Wno-newline-eof -Wno-ctad-maybe-unsupported -Wno-unused-command-line-argument -Wno-c++98-compat -Wno-c++98-compat-pedantic -Werror -Wshadow -Wconversion -Wall -Wextra -pthread -lgmp -lgmpxx")
+set(CMAKE_CXX_FLAGS "-std=c++2a -Wno-newline-eof -Wno-ctad-maybe-unsupported -Wno-c++98-compat -Wno-c++98-compat-pedantic -Werror -Wshadow -Wconversion -Wall -Wextra -pthread")
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -Ofast")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -march=native")
 # set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fgcse-sm -fgcse-las")
 # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -Wc++11-compat -D_EG_DEBUG -pg")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -D_EG_DEBUG -Og -pg")

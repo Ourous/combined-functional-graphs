@@ -2,20 +2,13 @@
 
 #include <vector>
 #include <iostream>
+
 // matrix, vertex, girth (current known lowest)
 unsigned int bfs(const csr_matrix& m, size_t v, unsigned int g) {
     std::vector<bool> mask(m.size, true); // changed to bool, logic inverted
     std::vector<size_t> vertex_queue(m.size, 0);
-    // x, y can be anything supporting binary arithmetic
-    // TODO: find what's fastest (can actually remove these vectors, turns out?)
-    // std::vector<uint_fast8_t> x(m.size, 0);
-    // std::vector<uint_fast8_t> y(m.size, 0);
 
-    vertex_queue[0] = v; // TODO RENAME
-    // lookup[0] = lookup[1] = v;
-    // x[v] = 1;
-
-    // std::cout << "running with v = " << v << std::endl;
+    vertex_queue[0] = v;
 
     auto step_slice_start = vertex_queue.begin();
     auto step_slice_end = step_slice_start + 1;
@@ -34,6 +27,9 @@ unsigned int bfs(const csr_matrix& m, size_t v, unsigned int g) {
                     mask[column] = false;
                     // unchanged = false;
                     next_slice++;
+
+                    // golfed alternative
+                    // mask[*(next_slice++) = column] = false;
                 }
             }
 
