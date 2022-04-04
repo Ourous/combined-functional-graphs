@@ -15,7 +15,7 @@ struct csr_matrix {
     std::vector<size_t> col_idx;
     std::vector<size_t> row_ptr;
     csr_matrix(size_t, std::set<std::pair<size_t, size_t>>); // x,y
-    csr_matrix(size_t, std::map<size_t, std::set<size_t>>); // y,x
+    csr_matrix(size_t, const std::map<size_t, std::set<size_t>>&); // y,x
 };
 
 #endif
