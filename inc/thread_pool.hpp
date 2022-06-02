@@ -10,6 +10,8 @@
 class thread_pool {
 public:
 
+    const size_t threads;
+
     thread_pool(size_t threads);
     ~thread_pool();
 

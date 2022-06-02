@@ -1,7 +1,6 @@
 #include "thread_pool.hpp"
-#include <functional>
 
-thread_pool::thread_pool(size_t threads) : in_destructor_(false), waiting_on_(0) {
+thread_pool::thread_pool(size_t threads) : threads(threads), in_destructor_(false), waiting_on_(0) {
     threads_.reserve(threads);
     for (size_t i = 0; i < threads; i++) threads_.emplace_back(std::bind(&thread_pool::enter_thread, this));
 }
